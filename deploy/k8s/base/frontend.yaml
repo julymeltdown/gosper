@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gosper-fe
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: gosper-fe }
+  template:
+    metadata:
+      labels: { app: gosper-fe }
+    spec:
+      containers:
+        - name: fe
+          image: ${FE_IMAGE}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          resources:
+            requests: { cpu: "100m", memory: "64Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gosper-fe
+  namespace: ${NAMESPACE}
+spec:
+  selector: { app: gosper-fe }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+
