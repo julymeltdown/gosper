@@ -1,16 +1,28 @@
-# Docs Index
+# Documentation Index
 
-- architecture.md — Hexagonal design, ports/use cases/adapters, flow
-- usage-cli.md — CLI commands, flags, examples
-- api.md — Backend HTTP API (`/api/transcribe`)
-- deployment-k3s.md — k3s scripts, manifests, domains
-- configuration.md — Env vars, config file, precedence
-- testing.md — Unit/integration, tags, coverage gates
-- audio.md — Decoders, resampler, capture, beeps
-- models.md — Models, checksums, caching
-- troubleshooting.md — Common issues and fixes
-- ci.md — GitHub Actions, coverage thresholds
-- tags.md — Build tags matrix and implications
-- roadmap.md — Planned work
-- contributing.md — Workflow, commit structure, code style
+## Core Documentation
+
+- **[architecture.md](./architecture.md)** — Hexagonal design, ports/use cases/adapters, flow
+- **[usage-cli.md](./usage-cli.md)** — CLI commands, flags, examples
+- **[api.md](./api.md)** — Backend HTTP API (`/api/transcribe`)
+- **[configuration.md](./configuration.md)** — Env vars, config file, precedence
+
+## Deployment Guides
+
+- **[deployment-complete.md](./deployment-complete.md)** — 📘 Complete deployment guide with Docker Compose, K8s, AWS/GCP/Azure, CI/CD, monitoring, and Mermaid diagrams
+- **[deployment-k3s.md](./deployment-k3s.md)** — K3s/K8s specific deployment scripts and manifests
+
+## Development & Operations
+
+- **[testing.md](./testing.md)** — Unit/integration, tags, coverage gates
+- **[audio.md](./audio.md)** — Decoders, resampler, capture, beeps
+- **[models.md](./models.md)** — Models, checksums, caching
+- **[troubleshooting.md](./troubleshooting.md)** — Common issues and fixes
+- **[ci.md](./ci.md)** — GitHub Actions, coverage thresholds
+- **[tags.md](./tags.md)** — Build tags matrix and implications
+
+## Project Information
+
+- **[roadmap.md](./roadmap.md)** — Planned work
+- **[contributing.md](./contributing.md)** — Workflow, commit structure, code style
 
