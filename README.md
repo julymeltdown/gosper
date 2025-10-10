@@ -2,6 +2,8 @@
 
 CLI for local speech-to-text using whisper.cpp via Go bindings, implemented with hexagonal architecture.
 
+📘 **[Complete Deployment Guide](./docs/deployment-complete.md)** — Covers Docker Compose, Kubernetes, AWS/GCP/Azure, CI/CD, monitoring, and more with detailed Mermaid diagrams.
+
 ## Build
 
 1. Build whisper static library:
