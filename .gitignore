@@ -6,3 +6,14 @@ whisper.cpp/
 .gomodcache/
 specs/001-handy-go/
 .specify/
+
+# Test coverage
+coverage.out
+coverage-all.out
+coverage-unit.out
+coverage-detailed.txt
+coverage-output.txt
+coverage-all-output.txt
+coverage-summary.txt
+coverage.html
+*.coverprofile

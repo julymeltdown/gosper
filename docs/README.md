@@ -15,6 +15,8 @@
 ## Development & Operations
 
 - **[testing.md](./testing.md)** — Unit/integration, tags, coverage gates
+- **[test-coverage-strategy.md](./test-coverage-strategy.md)** — 📊 Comprehensive test coverage improvement strategy (29.6% → 85%)
+- **[technical-debt.md](./technical-debt.md)** — 🔧 Technical debt analysis, incomplete features, and roadmap
 - **[audio.md](./audio.md)** — Decoders, resampler, capture, beeps
 - **[models.md](./models.md)** — Models, checksums, caching
 - **[troubleshooting.md](./troubleshooting.md)** — Common issues and fixes
