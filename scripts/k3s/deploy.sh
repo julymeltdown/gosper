@@ -10,6 +10,8 @@ NAMESPACE=${NAMESPACE:-handy}
 DOMAIN=${DOMAIN:-handy.local}
 BE_IMAGE=${BE_IMAGE:-gosper/server:local}
 FE_IMAGE=${FE_IMAGE:-gosper/fe:local}
+BE_NODEPORT=${BE_NODEPORT:-30080}
+FE_NODEPORT=${FE_NODEPORT:-30081}
 
 echo "[deploy] Namespace=$NAMESPACE Domain=$DOMAIN"
 
@@ -31,7 +33,7 @@ fi
 if [[ "$BE_IMAGE" == *":local" ]]; then echo "[warn] Using local tag for backend; ensure your k3s can pull it (e.g., via k3d registry)"; fi
 if [[ "$FE_IMAGE" == *":local" ]]; then echo "[warn] Using local tag for frontend; ensure your k3s can pull it (e.g., via k3d registry)"; fi
 
-export NAMESPACE DOMAIN BE_IMAGE FE_IMAGE
+export NAMESPACE DOMAIN BE_IMAGE FE_IMAGE BE_NODEPORT FE_NODEPORT
 
 RENDER_DIR="/tmp/gosper-k8s"
 rm -rf "$RENDER_DIR" && mkdir -p "$RENDER_DIR"

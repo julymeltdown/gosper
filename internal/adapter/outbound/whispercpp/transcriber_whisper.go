@@ -4,7 +4,6 @@ package whispercpp
 
 import (
     "context"
-    "fmt"
     w "github.com/ggerganov/whisper.cpp/bindings/go/pkg/whisper"
     "gosper/internal/domain"
     "gosper/internal/port"

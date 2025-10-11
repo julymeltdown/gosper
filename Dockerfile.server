@@ -1,13 +1,16 @@
-FROM golang:1.22-bullseye AS build
+FROM golang:1.23-bullseye AS build
 WORKDIR /app
 COPY . .
 # Build whisper static lib
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential clang cmake && rm -rf /var/lib/apt/lists/*
 RUN make -C whisper.cpp/bindings/go whisper
+# Download Go dependencies
+RUN go mod download
+RUN go get github.com/ggerganov/whisper.cpp/bindings/go || true
 # Build server with whisper tag
-ENV C_INCLUDE_PATH=/app/whisper.cpp
-ENV LIBRARY_PATH=/app/whisper.cpp/bindings/go/build
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -tags whisper -o /out/server ./cmd/server
+ENV C_INCLUDE_PATH=/app/whisper.cpp:/app/whisper.cpp/include:/app/whisper.cpp/ggml/include:/app/whisper.cpp/bindings/go/build
+ENV LIBRARY_PATH=/app/whisper.cpp/bindings/go/build:/app/whisper.cpp/build_go/src:/app/whisper.cpp/build_go/ggml/src
+RUN CGO_ENABLED=1 CGO_LDFLAGS="-ldl" GOOS=linux GOARCH=amd64 go build -tags whisper -o /out/server ./cmd/server
 
 FROM debian:bookworm-slim as runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 libgomp1 && rm -rf /var/lib/apt/lists/*

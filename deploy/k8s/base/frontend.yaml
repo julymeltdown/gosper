@@ -14,7 +14,7 @@ spec:
       containers:
         - name: fe
           image: ${FE_IMAGE}
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
           resources:
@@ -27,9 +27,11 @@ metadata:
   name: gosper-fe
   namespace: ${NAMESPACE}
 spec:
+  type: NodePort
   selector: { app: gosper-fe }
   ports:
     - name: http
       port: 80
       targetPort: 80
+      nodePort: ${FE_NODEPORT}
 
