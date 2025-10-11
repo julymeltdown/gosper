@@ -10,6 +10,7 @@
     </style>
   </head>
   <body>
+    <script src="config.js"></script>
     <h1>Gosper – Transcribe</h1>
     <form id="f">
       <div><input type="file" name="audio" accept="audio/*,.wav" required /></div>
@@ -29,8 +30,10 @@
         out.textContent = 'Uploading…';
         const fd = new FormData(f);
         try {
-          // Use relative path - nginx will proxy to backend
-          const res = await fetch('/api/transcribe', { method: 'POST', body: fd });
+          // Use backend URL from config (empty = same origin, nginx proxy)
+          const backendUrl = (window.GOSPER_CONFIG?.BACKEND_URL || '').replace(/\/$/, '');
+          const apiUrl = backendUrl ? `${backendUrl}/api/transcribe` : '/api/transcribe';
+          const res = await fetch(apiUrl, { method: 'POST', body: fd });
           const data = await res.json();
           out.textContent = JSON.stringify(data, null, 2);
         } catch (err) {

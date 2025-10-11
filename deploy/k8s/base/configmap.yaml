@@ -4,6 +4,13 @@ metadata:
   name: nginx-config
   namespace: gosper
 data:
+  # Runtime configuration for frontend
+  # Set BACKEND_URL to external backend domain for Cloudflare Tunnel deployments
+  # Leave empty for Ingress/reverse proxy deployments
+  config.js: |
+    window.GOSPER_CONFIG = {
+      BACKEND_URL: 'https://gosperbe.infinitefallcult.trade'
+    };
   default.conf: |
     server {
         listen 80;

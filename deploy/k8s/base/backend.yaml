@@ -23,7 +23,7 @@ spec:
             - name: GOSPER_LANG
               value: "en"
             - name: MODEL_BASE_URL
-              value: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/models"
+              value: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
           ports:
             - containerPort: 8080
           resources:

@@ -17,3 +17,8 @@ coverage-all-output.txt
 coverage-summary.txt
 coverage.html
 *.coverprofile
+
+# Test audio files
+test.m4a
+test.mp3
+test.wav
