@@ -3,41 +3,362 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Gosper – Transcribe</title>
+    <title>Gosper – Audio Transcription</title>
     <style>
-      body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; }
-      .out { white-space: pre-wrap; background: #f6f8fa; padding: 1rem; border-radius: 8px; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 2rem 1rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 720px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 2.5rem;
+      }
+
+      h1 {
+        font-size: 2rem;
+        color: #1a202c;
+        margin-bottom: 0.5rem;
+        text-align: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: #718096;
+        font-size: 0.95rem;
+        margin-bottom: 2rem;
+      }
+
+      form {
+        margin-bottom: 2rem;
+      }
+
+      .upload-area {
+        border: 2px dashed #cbd5e0;
+        border-radius: 12px;
+        padding: 2.5rem 1.5rem;
+        text-align: center;
+        background: #f7fafc;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        margin-bottom: 1.5rem;
+      }
+
+      .upload-area:hover {
+        border-color: #667eea;
+        background: #edf2f7;
+      }
+
+      .upload-area.dragover {
+        border-color: #667eea;
+        background: #e6fffa;
+      }
+
+      .upload-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
+
+      .upload-text {
+        color: #4a5568;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .upload-hint {
+        color: #a0aec0;
+        font-size: 0.875rem;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      .file-name {
+        display: none;
+        margin-top: 1rem;
+        padding: 0.75rem;
+        background: #e6fffa;
+        border-radius: 8px;
+        color: #2c7a7b;
+        font-size: 0.875rem;
+      }
+
+      .file-name.show {
+        display: block;
+      }
+
+      .options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #4a5568;
+        margin-bottom: 0.5rem;
+      }
+
+      input[type="text"] {
+        padding: 0.75rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+      }
+
+      input[type="text"]:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      button {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .result-section {
+        margin-top: 2rem;
+      }
+
+      h3 {
+        font-size: 1.25rem;
+        color: #2d3748;
+        margin-bottom: 1rem;
+      }
+
+      .out {
+        white-space: pre-wrap;
+        background: #f7fafc;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.875rem;
+        line-height: 1.6;
+        color: #2d3748;
+        min-height: 100px;
+        max-height: 500px;
+        overflow-y: auto;
+      }
+
+      .out:empty::before {
+        content: 'Your transcription result will appear here...';
+        color: #a0aec0;
+        font-style: italic;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid #e2e8f0;
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 0.5rem;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      @media (max-width: 640px) {
+        .container {
+          padding: 1.5rem;
+        }
+
+        h1 {
+          font-size: 1.5rem;
+        }
+
+        .options {
+          grid-template-columns: 1fr;
+        }
+
+        .upload-area {
+          padding: 1.5rem 1rem;
+        }
+      }
     </style>
   </head>
   <body>
     <script src="config.js"></script>
-    <h1>Gosper – Transcribe</h1>
-    <form id="f">
-      <div><input type="file" name="audio" accept="audio/*,.wav" required /></div>
-      <div>
-        <label>Model: <input name="model" placeholder="ggml-tiny.en.bin" /></label>
-        <label>Lang: <input name="lang" placeholder="en or auto" /></label>
+    <div class="container">
+      <h1>🎤 Gosper</h1>
+      <p class="subtitle">Privacy-first audio transcription powered by Whisper</p>
+
+      <form id="f">
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">📁</div>
+          <div class="upload-text">Click to upload or drag and drop</div>
+          <div class="upload-hint">WAV, MP3 or M4A (max 100MB)</div>
+          <input type="file" name="audio" id="audioFile" accept="audio/*,.wav" required />
+          <div class="file-name" id="fileName"></div>
+        </div>
+
+        <div class="options">
+          <div class="form-group">
+            <label for="model">Model</label>
+            <input type="text" id="model" name="model" placeholder="ggml-tiny.en.bin" />
+          </div>
+          <div class="form-group">
+            <label for="lang">Language</label>
+            <input type="text" id="lang" name="lang" placeholder="en or auto" />
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn">
+          <span id="btnText">Transcribe Audio</span>
+        </button>
+      </form>
+
+      <div class="result-section">
+        <h3>Result</h3>
+        <div class="out" id="out"></div>
       </div>
-      <button>Transcribe</button>
-    </form>
-    <h3>Result</h3>
-    <div class="out" id="out"></div>
+    </div>
     <script>
       const f = document.getElementById('f');
       const out = document.getElementById('out');
+      const uploadArea = document.getElementById('uploadArea');
+      const audioFile = document.getElementById('audioFile');
+      const fileName = document.getElementById('fileName');
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+
+      // File upload click handler
+      uploadArea.addEventListener('click', () => audioFile.click());
+
+      // Show file name when selected
+      audioFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          fileName.textContent = `✓ ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+          fileName.classList.add('show');
+        }
+      });
+
+      // Drag and drop handlers
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+      });
+
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('audio/')) {
+          audioFile.files = e.dataTransfer.files;
+          fileName.textContent = `✓ ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+          fileName.classList.add('show');
+        }
+      });
+
+      // Form submission
       f.addEventListener('submit', async (e) => {
         e.preventDefault();
-        out.textContent = 'Uploading…';
+
+        // Show loading state
+        submitBtn.disabled = true;
+        btnText.innerHTML = '<span class="loading"></span>Transcribing...';
+        out.textContent = 'Uploading and processing audio file...\n\nThis may take a few moments depending on file size.';
+
         const fd = new FormData(f);
+
         try {
           // Use backend URL from config (empty = same origin, nginx proxy)
           const backendUrl = (window.GOSPER_CONFIG?.BACKEND_URL || '').replace(/\/$/, '');
           const apiUrl = backendUrl ? `${backendUrl}/api/transcribe` : '/api/transcribe';
+
           const res = await fetch(apiUrl, { method: 'POST', body: fd });
           const data = await res.json();
-          out.textContent = JSON.stringify(data, null, 2);
+
+          if (data.error) {
+            out.textContent = `❌ Error: ${data.error}`;
+          } else {
+            // Format the result nicely
+            let result = `✅ Transcription Complete\n\n`;
+            result += `Language: ${data.language || 'auto'}\n`;
+            result += `Duration: ${data.duration_ms}ms\n\n`;
+            result += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            result += `Text:\n${data.text}\n\n`;
+
+            if (data.segments && data.segments.length > 0) {
+              result += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+              result += `Segments:\n`;
+              data.segments.forEach((seg, i) => {
+                const start = (seg.StartMS / 1000).toFixed(1);
+                const end = (seg.EndMS / 1000).toFixed(1);
+                result += `[${start}s - ${end}s] ${seg.Text}\n`;
+              });
+            }
+
+            out.textContent = result;
+          }
         } catch (err) {
-          out.textContent = 'Error: ' + err;
+          out.textContent = `❌ Error: ${err.message}\n\nPlease check:\n- Backend service is running\n- Audio file format is supported (WAV recommended)\n- File size is under 100MB`;
+        } finally {
+          // Reset button state
+          submitBtn.disabled = false;
+          btnText.textContent = 'Transcribe Audio';
         }
       });
     </script>
