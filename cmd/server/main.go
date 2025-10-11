@@ -27,8 +27,27 @@ func main() {
     addr := ":8080"
     if p := os.Getenv("PORT"); p != "" { addr = ":" + p }
     log.Printf("server listening on %s", addr)
-    srv := &http.Server{Addr: addr, Handler: mux}
+    // Wrap with CORS middleware
+    srv := &http.Server{Addr: addr, Handler: corsMiddleware(mux)}
     log.Fatal(srv.ListenAndServe())
+}
+
+// corsMiddleware adds CORS headers to allow cross-origin requests
+func corsMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Allow requests from any origin (adjust for production)
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+        // Handle preflight requests
+        if r.Method == http.MethodOptions {
+            w.WriteHeader(http.StatusOK)
+            return
+        }
+
+        next.ServeHTTP(w, r)
+    })
 }
 
 type responseError struct{ Error string `json:"error"` }

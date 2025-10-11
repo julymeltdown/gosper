@@ -29,7 +29,9 @@
         out.textContent = 'Uploading…';
         const fd = new FormData(f);
         try {
-          const res = await fetch('/api/transcribe', { method: 'POST', body: fd });
+          // Use environment-based backend URL or relative path
+          const backendUrl = window.GOSPER_BACKEND_URL || 'https://gosperbe.infinitefallcult.trade';
+          const res = await fetch(`${backendUrl}/api/transcribe`, { method: 'POST', body: fd });
           const data = await res.json();
           out.textContent = JSON.stringify(data, null, 2);
         } catch (err) {
