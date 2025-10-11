@@ -1,8 +1,110 @@
 # Gosper
 
-CLI for local speech-to-text using whisper.cpp via Go bindings, implemented with hexagonal architecture.
+**Privacy-first speech-to-text service powered by OpenAI Whisper, running entirely on your infrastructure.**
 
-📘 **[Complete Deployment Guide](./docs/deployment-complete.md)** — Covers Docker Compose, Kubernetes, AWS/GCP/Azure, CI/CD, monitoring, and more with detailed Mermaid diagrams.
+Gosper is a comprehensive speech-to-text solution that converts audio files and live microphone recordings into accurate text transcripts. Unlike cloud-based alternatives, Gosper runs OpenAI's Whisper model locally, ensuring your audio data never leaves your infrastructure.
+
+## Table of Contents
+
+- [What is Gosper?](#what-is-gosper)
+- [Key Features](#key-features)
+- [Use Cases](#use-cases)
+- [Why Choose Gosper?](#why-choose-gosper)
+- [Quick Demo](#quick-demo)
+- [Architecture Overview](#architecture-overview)
+- [Build](#build)
+- [Production Deployment (k3s/Kubernetes)](#production-deployment-k3skubernetes)
+- [CLI Quickstart](#quickstart-cli)
+- [Build Tags](#build-tags)
+- [Configuration](#config--persistence)
+- [Testing](#testing--coverage)
+- [Troubleshooting](#troubleshooting)
+
+## What is Gosper?
+
+Gosper provides two ways to transcribe speech:
+
+1. **CLI Tool** — Command-line interface for batch processing audio files and recording from microphone
+2. **Web Service** — HTTP API with browser-based UI for easy file uploads and transcription
+
+All processing happens locally using [whisper.cpp](https://github.com/ggerganov/whisper.cpp), a high-performance C++ implementation of OpenAI's Whisper automatic speech recognition model.
+
+## Key Features
+
+- **🔒 Privacy-First**: All transcription happens locally—no data sent to external APIs
+- **🌍 Multi-Language**: Supports 100+ languages with automatic language detection
+- **💰 Cost-Effective**: No per-minute API costs; runs on your own hardware
+- **📴 Offline Capable**: Works without internet connection (models cached locally)
+- **🎤 Live Recording**: Record and transcribe directly from microphone
+- **⚡ Fast Processing**: Optimized C++ implementation with OpenMP parallelization
+- **🐳 Cloud-Ready**: Docker images and Kubernetes manifests for easy deployment
+- **🏗️ Clean Architecture**: Hexagonal architecture with dependency injection for testability
+
+## Use Cases
+
+- **Meeting Transcription**: Record and transcribe team meetings, interviews, or calls
+- **Content Creation**: Generate subtitles for podcasts, videos, or presentations
+- **Documentation**: Convert voice notes and recordings into searchable text
+- **Accessibility**: Create text alternatives for audio content
+- **Research**: Transcribe interviews, focus groups, or field recordings
+
+## Why Choose Gosper?
+
+| Feature | Gosper | Cloud APIs (e.g., Google, AWS) |
+|---------|--------|--------------------------------|
+| **Data Privacy** | ✅ Runs locally | ❌ Data sent to cloud |
+| **Cost** | ✅ Free after setup | ❌ Pay per minute |
+| **Offline Use** | ✅ Works offline | ❌ Requires internet |
+| **Accuracy** | ✅ OpenAI Whisper | ✅ High accuracy |
+| **Deployment** | ✅ Self-hosted | ❌ Vendor lock-in |
+
+## Quick Demo
+
+### CLI Usage
+```bash
+# Transcribe an audio file
+./gosper transcribe meeting.wav --model ggml-base.en.bin --lang en
+
+# Record 30 seconds from microphone and transcribe
+./gosper record --duration 30s --audio-feedback
+```
+
+### Web API
+```bash
+# Start the server
+docker run -p 8080:8080 gosper/server:local
+
+# Transcribe via API
+curl -F audio=@meeting.wav http://localhost:8080/api/transcribe
+```
+
+### Web UI
+Upload audio files through a simple browser interface at `http://localhost:8080/`
+
+## Architecture Overview
+
+Gosper follows hexagonal (ports & adapters) architecture for clean separation of concerns:
+
+```
+┌─────────────────────────────────────────────┐
+│           Inbound Adapters                  │
+│  (CLI, HTTP Server, Web UI)                 │
+└──────────────┬──────────────────────────────┘
+               │
+┌──────────────▼──────────────────────────────┐
+│         Use Cases (Business Logic)          │
+│  (TranscribeFile, RecordAndTranscribe)      │
+└──────────────┬──────────────────────────────┘
+               │
+┌──────────────▼──────────────────────────────┐
+│        Outbound Adapters                    │
+│  (Whisper.cpp, Audio I/O, Model Fetcher)   │
+└─────────────────────────────────────────────┘
+```
+
+---
+
+📘 **[Complete Deployment Guide](./docs/deployment-complete.md)** — Detailed guide covering Docker Compose, Kubernetes, AWS/GCP/Azure, CI/CD, monitoring, and more.
 
 ## Build
 
@@ -50,31 +152,94 @@ make test
 ### Windows
 - The `malgo` input adapter builds under the `malgo` build tag. Ensure you have a C compiler and run from a terminal with microphone permission enabled in Settings.
 
-## k3s Deployment
+## Production Deployment (k3s/Kubernetes)
 
-This repo includes a minimal backend HTTP server and static frontend for running in k3s.
+Gosper includes production-ready Docker images and Kubernetes manifests for deploying both the backend API and frontend web UI.
 
-Images
-- Backend: `Dockerfile.server` builds a Linux binary linking against `whisper.cpp` and exposes `/api/transcribe`.
-- Frontend: `Dockerfile.frontend` serves `web/` via nginx.
+### What Gets Deployed
 
-Kubernetes Manifests: `deploy/k8s/base/*.yaml`
-- Namespace, backend Deployment/Service, frontend Deployment/Service, Ingress (Traefik / k3s default)
+- **Backend Service**: Go HTTP server exposing `/api/transcribe` endpoint
+- **Frontend Service**: Nginx serving static web UI for file uploads
+- **Model Auto-Download**: Whisper models are fetched from Hugging Face on first use
+- **NodePort Services**: Direct access via node IP and port (configurable)
+- **Ingress**: Traefik-based routing for domain-based access
 
-Quickstart
-1) Build images (or set BE_IMAGE/FE_IMAGE to your registry/tag):
-   - `docker build -f Dockerfile.server -t gosper/server:local .`
-   - `docker build -f Dockerfile.frontend -t gosper/fe:local .`
-2) Configure env:
-   - `cp scripts/k3s/env.example scripts/k3s/.env` and edit BE_IMAGE/FE_IMAGE, NAMESPACE, DOMAIN
-3) Deploy:
-   - `bash scripts/k3s/deploy.sh`
-4) Open `http://$DOMAIN/` and upload a WAV file
+### Quick Deployment
 
-Notes
-- For production, push images to a registry (Docker Hub, GHCR) and set BE_IMAGE/FE_IMAGE accordingly in `.env`.
-- k3s includes Traefik; the provided Ingress uses `web` entrypoint. Configure DNS or add `/etc/hosts` for `${DOMAIN}`.
-- The server fetches models from Hugging Face on first use; ensure outbound network is allowed.
+```bash
+# 1. Build Docker images
+docker build -f Dockerfile.server -t gosper/server:local .
+docker build -f Dockerfile.frontend -t gosper/fe:local .
+
+# 2. Import images to k3s
+docker save gosper/server:local -o /tmp/gosper-server.tar
+docker save gosper/fe:local -o /tmp/gosper-fe.tar
+sudo k3s ctr images import /tmp/gosper-server.tar
+sudo k3s ctr images import /tmp/gosper-fe.tar
+
+# 3. Configure deployment (optional - defaults provided)
+cp scripts/k3s/env.example scripts/k3s/.env
+# Edit: NAMESPACE, BE_NODEPORT, FE_NODEPORT, DOMAIN
+
+# 4. Deploy to k3s
+bash scripts/k3s/deploy.sh
+```
+
+### Access Your Deployment
+
+After deployment, Gosper is accessible via:
+
+- **Backend API**: `http://<NODE_IP>:<BE_NODEPORT>/api/transcribe`
+- **Frontend UI**: `http://<NODE_IP>:<FE_NODEPORT>/`
+- **Ingress** (if DNS configured): `http://<DOMAIN>/`
+
+Example with default ports (31209 for backend, 31987 for frontend):
+```bash
+# Upload and transcribe via API
+curl -F audio=@meeting.wav http://192.168.1.100:31209/api/transcribe
+
+# Access web UI
+open http://192.168.1.100:31987
+```
+
+### Configuration Options
+
+Edit `scripts/k3s/.env` to customize:
+
+```bash
+# Namespace and domain
+export NAMESPACE=gosper
+export DOMAIN=gosper.local
+
+# Docker images (use registry URLs for production)
+export BE_IMAGE=gosper/server:local
+export FE_IMAGE=gosper/fe:local
+
+# NodePort assignments (must be in range 30000-32767)
+export BE_NODEPORT=31209
+export FE_NODEPORT=31987
+```
+
+### Production Considerations
+
+- **Image Registry**: Push images to GHCR, Docker Hub, or private registry for production
+- **Resource Limits**: Adjust CPU/memory requests in `deploy/k8s/base/*.yaml` based on workload
+- **Model Size**: Larger Whisper models (medium, large) require more memory
+- **TLS/HTTPS**: Configure cert-manager and update Ingress annotations for SSL
+- **Monitoring**: See [deployment guide](./docs/deployment-complete.md) for Prometheus/Grafana setup
+
+### Verify Deployment
+
+```bash
+# Check pod status
+kubectl get pods -n gosper
+
+# Check services and ports
+kubectl get svc -n gosper
+
+# View backend logs
+kubectl logs -f deployment/gosper-be -n gosper
+```
 
 ## Quickstart (CLI)
 
