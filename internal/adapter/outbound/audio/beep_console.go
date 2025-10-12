@@ -1,3 +1,5 @@
+//go:build !malgo
+
 package audio
 import "time"
 

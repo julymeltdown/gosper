@@ -13,11 +13,16 @@ Get started with Gosper in minutes. This guide covers the fastest way to start t
 
 ## Docker Quick Start
 
+**Note**: The public Docker image `gosper/server:latest` is currently out of date. Please build the image locally.
+
 The fastest way to try Gosper:
 
 ```bash
+# Build the server image
+docker build -f Dockerfile.server -t gosper/server:local .
+
 # Run the server
-docker run -p 8080:8080 gosper/server:latest
+docker run -p 8080:8080 gosper/server:local
 
 # In another terminal, transcribe an audio file
 curl -X POST http://localhost:8080/api/transcribe \
@@ -33,7 +38,7 @@ curl -X POST http://localhost:8080/api/transcribe \
 # Use a larger model for better accuracy
 docker run -p 8080:8080 \
   -e GOSPER_MODEL=ggml-base.en.bin \
-  gosper/server:latest
+  gosper/server:local
 
 # Transcribe
 curl -X POST http://localhost:8080/api/transcribe \
@@ -53,7 +58,7 @@ docker volume create gosper-models
 # Run with volume
 docker run -p 8080:8080 \
   -v gosper-models:/root/.cache/gosper \
-  gosper/server:latest
+  gosper/server:local
 ```
 
 ## CLI Quick Start
@@ -75,8 +80,9 @@ gosper --version
 ```bash
 git clone https://github.com/yourusername/gosper.git
 cd gosper
-make deps
-make build
+
+# Build the CLI
+make build-cli
 sudo cp dist/gosper /usr/local/bin/
 ```
 
@@ -120,16 +126,16 @@ gosper record --duration 1m -o notes.txt
 **Using Binary**:
 ```bash
 # Build server
-go build -tags "whisper" -o server ./cmd/server
+make build-server
 
 # Run
-./server
+./dist/server
 # Listening on :8080
 ```
 
 **Using Docker**:
 ```bash
-docker run -p 8080:8080 gosper/server:latest
+docker run -p 8080:8080 gosper/server:local
 ```
 
 ### API Examples
@@ -211,7 +217,7 @@ curl -L -o jfk.wav \
 
 **Using CLI**:
 ```bash
-gosper transcribe jfk.wav --lang en
+./dist/gosper transcribe jfk.wav --lang en
 ```
 
 **Using API**:
@@ -264,7 +270,7 @@ Saved to: jfk.txt
 ```bash
 # Bash loop
 for file in recordings/*.mp3; do
-  gosper transcribe "$file" -o "transcripts/$(basename "$file" .mp3).txt"
+  ./dist/gosper transcribe "$file" -o "transcripts/$(basename "$file" .mp3).txt"
 done
 ```
 
@@ -281,7 +287,7 @@ ls recordings/*.wav | parallel -j 4 \
 ```bash
 # Record and transcribe continuously (30s chunks)
 while true; do
-  gosper record --duration 30s -o "notes-$(date +%s).txt"
+  ./dist/gosper record --duration 30s -o "notes-$(date +%s).txt"
 done
 ```
 
@@ -289,10 +295,10 @@ done
 
 ```bash
 # Auto-detect language
-gosper transcribe multilingual-audio.mp3 --lang auto
+./dist/gosper transcribe multilingual-audio.mp3 --lang auto
 
 # Force specific language
-gosper transcribe spanish-audio.mp3 --lang es
+./dist/gosper transcribe spanish-audio.mp3 --lang es
 ```
 
 ## Configuration
@@ -313,7 +319,7 @@ export GOSPER_THREADS=4
 export GOSPER_LOG=debug
 
 # Transcribe
-gosper transcribe audio.mp3
+./dist/gosper transcribe audio.mp3
 ```
 
 ### Config File
@@ -379,20 +385,20 @@ Models are automatically downloaded on first use if not found locally.
 
 ```bash
 # Use more threads (default: number of CPU cores)
-gosper transcribe audio.mp3 --threads 8
+./dist/gosper transcribe audio.mp3 --threads 8
 
 # Use smaller model
-gosper transcribe audio.mp3 --model ggml-tiny.en.bin
+./dist/gosper transcribe audio.mp3 --model ggml-tiny.en.bin
 ```
 
 ### Accuracy Optimization
 
 ```bash
 # Use larger model
-gosper transcribe audio.mp3 --model ggml-medium.en.bin
+./dist/gosper transcribe audio.mp3 --model ggml-medium.en.bin
 
 # Specify language (skip detection)
-gosper transcribe audio.mp3 --lang en
+./dist/gosper transcribe audio.mp3 --lang en
 ```
 
 ### Memory Management
@@ -400,7 +406,7 @@ gosper transcribe audio.mp3 --lang en
 ```bash
 # For large MP3 files (>200MB), convert to WAV first
 ffmpeg -i large-audio.mp3 large-audio.wav
-gosper transcribe large-audio.wav
+./dist/gosper transcribe large-audio.wav
 ```
 
 ## Troubleshooting
@@ -411,7 +417,7 @@ gosper transcribe large-audio.wav
 
 **Solution**: Download manually or let Gosper download automatically:
 ```bash
-gosper transcribe audio.mp3 --model ggml-tiny.en.bin
+./dist/gosper transcribe audio.mp3 --model ggml-tiny.en.bin
 # Model will be downloaded to cache directory
 ```
 
@@ -422,7 +428,7 @@ gosper transcribe audio.mp3 --model ggml-tiny.en.bin
 **Solution**: Convert to WAV or MP3:
 ```bash
 ffmpeg -i audio.m4a audio.mp3
-gosper transcribe audio.mp3
+./dist/gosper transcribe audio.mp3
 ```
 
 ### File Too Large
@@ -432,7 +438,7 @@ gosper transcribe audio.mp3
 **Solution**: Convert to WAV (no size limit):
 ```bash
 ffmpeg -i large-file.mp3 large-file.wav
-gosper transcribe large-file.wav
+./dist/gosper transcribe large-file.wav
 ```
 
 ### Microphone Not Found

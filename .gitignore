@@ -22,3 +22,8 @@ coverage.html
 test.m4a
 test.mp3
 test.wav
+
+dist/
+
+# Models
+*.bin

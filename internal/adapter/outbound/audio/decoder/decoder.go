@@ -28,7 +28,7 @@ func New(path string) (Decoder, error) {
     switch ext {
     case ".wav", ".Wave", ".WAV":
         return NewWAV(path)
-    case ".mp3", ".MP3":
+	case ".mp3", ".MP3", ".Mp3":
         return NewMP3(path)
     default:
         return nil, fmt.Errorf("unsupported audio format: %s", ext)
