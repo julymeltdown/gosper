@@ -88,21 +88,27 @@ sudo cp dist/gosper /usr/local/bin/
 
 ### Basic Usage
 
+**1. Download a Model**
+
+First, you need a Whisper model. You can build a helper utility to download one.
 ```bash
-# Transcribe a WAV file
-gosper transcribe meeting.wav --lang en
+# From the root of the gosper repository
+make -C whisper.cpp/bindings/go examples
+./whisper.cpp/bindings/go/build_go/go-model-download -out whisper.cpp/models ggml-tiny.en.bin
+```
 
-# Transcribe an MP3 file with automatic language detection
-gosper transcribe podcast.mp3 --lang auto
+**2. Transcribe an Audio File**
 
-# Use a specific model
-gosper transcribe interview.wav \
-  --model ggml-base.en.bin \
-  --lang en
+Now you can transcribe audio. **Note**: We recommend using WAV files due to a [known issue](#mp3) with the MP3 decoder.
 
-# Save to file
-gosper transcribe lecture.mp3 \
-  --lang en \
+```bash
+# Transcribe a WAV file, specifying the model path
+./dist/gosper transcribe path/to/your/audio.wav \
+  --model whisper.cpp/models/ggml-tiny.en.bin
+
+# Save to a file
+./dist/gosper transcribe audio.wav \
+  --model whisper.cpp/models/ggml-tiny.en.bin \
   -o transcript.txt
 ```
 
@@ -217,7 +223,9 @@ curl -L -o jfk.wav \
 
 **Using CLI**:
 ```bash
-./dist/gosper transcribe jfk.wav --lang en
+# Make sure you have downloaded a model first (see CLI Quick Start)
+./dist/gosper transcribe jfk.wav \
+  --model whisper.cpp/models/ggml-tiny.en.bin
 ```
 
 **Using API**:
@@ -350,6 +358,11 @@ Create `~/.config/gosper/config.json`:
 - **Channels**: Mono or stereo
 - **Bitrate**: All bitrates supported (CBR, VBR, ABR)
 - **File Size**: Maximum 200 MB
+
+> **Warning**: There is a known issue with the current MP3 decoder which can cause transcription to fail silently. We recommend converting MP3 files to WAV format before transcription for reliability.
+> ```bash
+> ffmpeg -i your-audio.mp3 your-audio.wav
+> ```
 
 Both formats are automatically:
 - Resampled to 16 kHz (Whisper requirement)

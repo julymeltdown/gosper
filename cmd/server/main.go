@@ -1,35 +1,104 @@
 package main
 
 import (
-    "encoding/json"
-    "fmt"
-    "io"
-    "log"
-    "net/http"
-    "os"
-    "path/filepath"
-    "time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
 
-    "gosper/internal/adapter/outbound/model"
-    "gosper/internal/adapter/outbound/storage"
-    "gosper/internal/adapter/outbound/whispercpp"
-    "gosper/internal/usecase"
+	"gosper/internal/adapter/outbound/model"
+	"gosper/internal/adapter/outbound/storage"
+	"gosper/internal/adapter/outbound/whispercpp"
+	"gosper/internal/config"
+	"gosper/internal/usecase"
 )
 
-func main() {
-    mux := http.NewServeMux()
-    mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-        w.WriteHeader(http.StatusOK)
-        _, _ = w.Write([]byte("ok"))
-    })
-    mux.HandleFunc("/api/transcribe", transcribeHandler)
+type application struct {
+	cfg      *config.Config
+	logger   *log.Logger
+	usecases struct {
+		transcribeFile *usecase.TranscribeFile
+	}
+}
 
-    addr := ":8080"
-    if p := os.Getenv("PORT"); p != "" { addr = ":" + p }
-    log.Printf("server listening on %s", addr)
-    // Wrap with CORS middleware
-    srv := &http.Server{Addr: addr, Handler: corsMiddleware(mux)}
-    log.Fatal(srv.ListenAndServe())
+// Server is the main application server.
+type Server struct {
+	server *http.Server
+	app    *application
+}
+
+// NewServer creates a new server.
+func NewServer(app *application) *Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	mux.HandleFunc("/api/transcribe", app.transcribeHandler)
+
+	return &Server{
+		server: &http.Server{
+			Addr:    app.cfg.Addr,
+			Handler: corsMiddleware(mux),
+		},
+		app: app,
+	}
+}
+
+// ListenAndServe starts the server.
+func (s *Server) ListenAndServe() error {
+	log.Printf("server listening on %s", s.server.Addr)
+	if err := s.server.ListenAndServe(); err != http.ErrServerClosed {
+		return err
+	}
+	return nil
+}
+
+// Shutdown gracefully shuts down the server.
+func (s *Server) Shutdown(ctx context.Context) error {
+	log.Printf("shutting down server")
+	return s.server.Shutdown(ctx)
+}
+
+func main() {
+	cfg := config.FromEnv()
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+
+	app := &application{
+		cfg:    cfg,
+		logger: logger,
+		usecases: struct{ transcribeFile *usecase.TranscribeFile }{
+			transcribeFile: &usecase.TranscribeFile{
+				Repo:  &model.FSRepo{BaseURL: cfg.ModelBaseURL},
+				Trans: &whispercpp.Transcriber{},
+				Store: storage.FS{},
+			},
+		},
+	}
+
+	srv := NewServer(app)
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("shutdown error: %v", err)
+	}
 }
 
 // corsMiddleware adds CORS headers to allow cross-origin requests
@@ -52,64 +121,103 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 type responseError struct{ Error string `json:"error"` }
 
-func jsonError(w http.ResponseWriter, code int, msg string) {
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(code)
-    _ = json.NewEncoder(w).Encode(responseError{Error: msg})
+func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, status int, message any) {
+	env := responseError{Error: message.(string)}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(env)
 }
 
-func transcribeHandler(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodPost {
-        jsonError(w, http.StatusMethodNotAllowed, "POST required")
-        return
-    }
-    if err := r.ParseMultipartForm(100 << 20); err != nil { // 100MB
-        jsonError(w, http.StatusBadRequest, fmt.Sprintf("parse form: %v", err))
-        return
-    }
-    file, header, err := r.FormFile("audio")
-    if err != nil { jsonError(w, http.StatusBadRequest, "missing file field 'audio'"); return }
-    defer file.Close()
+func (app *application) serverError(w http.ResponseWriter, r *http.Request, err error) {
+	app.logger.Println(r.Method, r.URL.Path, r.RemoteAddr, "error:", err)
+	message := "the server encountered a problem and could not process your request"
+	app.errorResponse(w, r, http.StatusInternalServerError, message)
+}
 
-    // Persist to temp file for decoder compatibility
-    tmpDir := os.TempDir()
-    ext := filepath.Ext(header.Filename)
-    if ext == "" { ext = ".wav" }
-    tmp, err := os.CreateTemp(tmpDir, "upload-*"+ext)
-    if err != nil { jsonError(w, http.StatusInternalServerError, fmt.Sprintf("tmp: %v", err)); return }
-    defer func() { tmp.Close(); os.Remove(tmp.Name()) }()
-    if _, err := io.Copy(tmp, file); err != nil { jsonError(w, http.StatusInternalServerError, fmt.Sprintf("write: %v", err)); return }
-    if _, err := tmp.Seek(0, 0); err != nil { jsonError(w, http.StatusInternalServerError, fmt.Sprintf("seek: %v", err)); return }
+func (app *application) clientError(w http.ResponseWriter, r *http.Request, status int, message string) {
+	app.errorResponse(w, r, status, message)
+}
 
-    // Build use case
-    uc := &usecase.TranscribeFile{
-        Repo:  &model.FSRepo{BaseURL: os.Getenv("MODEL_BASE_URL")},
-        Trans: &whispercpp.Transcriber{},
-        Store: storage.FS{},
-    }
+func (app *application) transcribeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		app.clientError(w, r, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
 
-    modelName := r.FormValue("model")
-    if modelName == "" { modelName = os.Getenv("GOSPER_MODEL") }
-    lang := r.FormValue("lang")
-    if lang == "" { lang = os.Getenv("GOSPER_LANG") }
+	tmp, cleanup, err := app.handleFileUpload(w, r)
+	if err != nil {
+		return
+	}
+	defer cleanup()
 
-    start := time.Now()
-    tr, trErr := uc.Execute(r.Context(), usecase.TranscribeInput{
-        Path:      tmp.Name(),
-        ModelName: modelName,
-        Language:  lang,
-    })
-    dur := time.Since(start)
-    if trErr != nil {
-        jsonError(w, http.StatusBadGateway, trErr.Error())
-        return
-    }
-    w.Header().Set("Content-Type", "application/json")
-    _ = json.NewEncoder(w).Encode(map[string]any{
-        "language":   tr.Language,
-        "text":       tr.FullText,
-        "segments":   tr.Segments,
-        "duration_ms": dur.Milliseconds(),
-    })
+	modelName := r.FormValue("model")
+	if modelName == "" {
+		modelName = app.cfg.Model
+	}
+	lang := r.FormValue("lang")
+	if lang == "" {
+		lang = app.cfg.Language
+	}
+
+	start := time.Now()
+	tr, trErr := app.usecases.transcribeFile.Execute(r.Context(), usecase.TranscribeInput{
+		Path:      tmp.Name(),
+		ModelName: modelName,
+		Language:  lang,
+	})
+	dur := time.Since(start)
+	if trErr != nil {
+		app.serverError(w, r, trErr)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"language":    tr.Language,
+		"text":        tr.FullText,
+		"segments":    tr.Segments,
+		"duration_ms": dur.Milliseconds(),
+	})
+}
+
+func (app *application) handleFileUpload(w http.ResponseWriter, r *http.Request) (*os.File, func(), error) {
+	if err := r.ParseMultipartForm(100 << 20); err != nil { // 100MB
+		app.clientError(w, r, http.StatusBadRequest, fmt.Sprintf("parse form: %v", err))
+		return nil, nil, err
+	}
+	file, header, err := r.FormFile("audio")
+	if err != nil {
+		app.clientError(w, r, http.StatusBadRequest, "missing file field 'audio'")
+		return nil, nil, err
+	}
+	defer file.Close()
+
+	// Persist to temp file for decoder compatibility
+	tmpDir := os.TempDir()
+	ext := filepath.Ext(header.Filename)
+	if ext == "" {
+		ext = ".wav"
+	}
+	tmp, err := os.CreateTemp(tmpDir, "upload-*"+ext)
+	if err != nil {
+		app.serverError(w, r, fmt.Errorf("tmp: %v", err))
+		return nil, nil, err
+	}
+	cleanup := func() {
+		tmp.Close()
+		os.Remove(tmp.Name())
+	}
+
+	if _, err := io.Copy(tmp, file); err != nil {
+		cleanup()
+		app.serverError(w, r, fmt.Errorf("write: %v", err))
+		return nil, nil, err
+	}
+	if _, err := tmp.Seek(0, 0); err != nil {
+		cleanup()
+		app.serverError(w, r, fmt.Errorf("seek: %v", err))
+		return nil, nil, err
+	}
+
+	return tmp, cleanup, nil
 }
 

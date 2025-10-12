@@ -2,9 +2,10 @@ SHELL := /bin/bash
 
 .PHONY: deps build-all build-cli build-server build-cli-only build-server-only test itest lint tidy clean help
 
-CGO_INCLUDE_PATH := $(PWD)/whisper.cpp/include:$(PWD)/whisper.cpp/ggml/include
-CGO_LIBRARY_PATH := $(PWD)/whisper.cpp/build_go/src:$(PWD)/whisper.cpp/build_go/ggml/src
-CGO_LDFLAGS_VALUE := -L$(CGO_LIBRARY_PATH) -lwhisper -lggml -lggml-base -lggml-cpu -lm -lstdc++ -fopenmp
+CGO_INCLUDE_PATH := $(PWD)/whisper.cpp:$(PWD)/whisper.cpp/include:$(PWD)/whisper.cpp/ggml/include
+WHISPER_LIB_PATH := $(PWD)/whisper.cpp/build_go/src
+GGML_LIB_PATH := $(PWD)/whisper.cpp/build_go/ggml/src
+CGO_LDFLAGS_VALUE := -L$(WHISPER_LIB_PATH) -L$(GGML_LIB_PATH) -lwhisper -lggml -lggml-base -lggml-cpu -lm -lstdc++ -fopenmp
 
 WHISPER_GO_DIR := whisper.cpp/bindings/go
 WHISPER_BUILD  := $(WHISPER_GO_DIR)/build
@@ -27,13 +28,13 @@ build-server: deps build-server-only
 
 # Build CLI binary only (no deps check)
 build-cli-only:
-	CGO_CFLAGS="-I$(CGO_INCLUDE_PATH)" \
+	C_INCLUDE_PATH="$(CGO_INCLUDE_PATH)" \
 	CGO_LDFLAGS="$(CGO_LDFLAGS_VALUE)" \
 		go build -tags "cli malgo whisper" -o dist/gosper ./cmd/gosper
 
 # Build server binary only (no deps check)
 build-server-only:
-	CGO_CFLAGS="-I$(CGO_INCLUDE_PATH)" \
+	C_INCLUDE_PATH="$(CGO_INCLUDE_PATH)" \
 	CGO_LDFLAGS="$(CGO_LDFLAGS_VALUE)" \
 		go build -tags "whisper" -o dist/server ./cmd/server
 
@@ -42,7 +43,7 @@ test:
 
 itest: deps
 	GOSPER_INTEGRATION=1 \
-	CGO_CFLAGS="-I$(CGO_INCLUDE_PATH)" \
+	C_INCLUDE_PATH="$(CGO_INCLUDE_PATH)" \
 	CGO_LDFLAGS="$(CGO_LDFLAGS_VALUE)" \
 		go test ./test/integration -count=1 -v
 
