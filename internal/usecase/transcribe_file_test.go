@@ -4,11 +4,11 @@ import (
     "context"
     "errors"
     "io"
+    "os"
     "testing"
 
     "gosper/internal/adapter/outbound/audio/decoder"
     "gosper/internal/domain"
-    
 )
 
 // Fake implementations
@@ -66,4 +66,90 @@ func TestTranscribeFile_PropagatesErrors(t *testing.T) {
     // transcriber error
     uc3 := &TranscribeFile{Factory: func(string)(decoder.Decoder,error){ return dec, nil }, Repo: &fakeRepo{path:"/m"}, Trans: &fakeTranscriber{err: errors.New("oops")}}
     if _, err := uc3.Execute(context.Background(), TranscribeInput{Path:"x"}); err == nil { t.Fatal("expected error") }
+}
+
+// Integration tests with real MP3 decoder
+
+func TestTranscribeFile_MP3_RealDecoder(t *testing.T) {
+    if testing.Short() {
+        t.Skip("skipping MP3 integration test in short mode")
+    }
+
+    testMP3 := "../adapter/outbound/audio/decoder/testdata/test.mp3"
+    // Check if test file exists
+    if _, err := os.Stat(testMP3); os.IsNotExist(err) {
+        t.Skip("test MP3 file not found")
+    }
+
+    // Use real decoder via Factory default (decoder.New)
+    rep := &fakeRepo{path: "/models/ggml-tiny.en.bin"}
+    tr := &fakeTranscriber{}
+    st := &fakeStorage{}
+
+    uc := &TranscribeFile{
+        Repo:  rep,
+        Trans: tr,
+        Store: st,
+        // Factory: nil -> uses real decoder.New()
+    }
+
+    result, err := uc.Execute(context.Background(), TranscribeInput{
+        Path:      testMP3,
+        ModelName: "ggml-tiny.en.bin",
+        Language:  "en",
+    })
+
+    if err != nil {
+        t.Fatalf("Execute failed for MP3: %v", err)
+    }
+
+    // Verify transcriber was called with valid PCM
+    if tr.gotPCM == 0 {
+        t.Error("Transcriber not called with PCM data")
+    }
+
+    // MP3 is ~3 seconds @ 48kHz, resampled to 16kHz = ~48000 samples
+    if tr.gotPCM < 40000 || tr.gotPCM > 60000 {
+        t.Errorf("unexpected PCM length: %d (expected ~48000)", tr.gotPCM)
+    }
+
+    t.Logf("MP3 decoded and resampled to %d samples @ 16kHz", tr.gotPCM)
+
+    // Verify result
+    if result.Language != "en" {
+        t.Errorf("unexpected language: %s", result.Language)
+    }
+    if result.FullText != "hello world" {
+        t.Errorf("unexpected text: %s", result.FullText)
+    }
+}
+
+func TestTranscribeFile_MP3_InvalidFile(t *testing.T) {
+    // Create invalid MP3 file
+    invalidMP3 := t.TempDir() + "/invalid.mp3"
+    if err := os.WriteFile(invalidMP3, []byte("not an mp3 file, just text"), 0644); err != nil {
+        t.Fatal(err)
+    }
+
+    rep := &fakeRepo{path: "/models/ggml-tiny.en.bin"}
+    tr := &fakeTranscriber{}
+    st := &fakeStorage{}
+
+    uc := &TranscribeFile{
+        Repo:  rep,
+        Trans: tr,
+        Store: st,
+        // Factory: nil -> uses real decoder.New()
+    }
+
+    _, err := uc.Execute(context.Background(), TranscribeInput{
+        Path:      invalidMP3,
+        ModelName: "ggml-tiny.en.bin",
+    })
+
+    if err == nil {
+        t.Error("expected error for invalid MP3")
+    }
+
+    t.Logf("Got expected error: %v", err)
 }
