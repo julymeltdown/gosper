@@ -3,7 +3,6 @@
 package cli
 
 import (
-    "context"
     "fmt"
     "github.com/spf13/cobra"
     "gosper/internal/adapter/outbound/model"

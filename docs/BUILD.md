@@ -9,11 +9,8 @@ This guide covers building Gosper from source code, including prerequisites, pla
 git clone https://github.com/yourusername/gosper.git
 cd gosper
 
-# Build whisper.cpp dependency
-make deps
-
-# Build CLI
-make build
+# Build all binaries
+make build-all
 
 # Run tests
 make test
@@ -63,59 +60,19 @@ git clone https://github.com/yourusername/gosper.git
 cd gosper
 ```
 
-### 2. Build whisper.cpp Dependency
-
-Gosper uses [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for speech recognition. Build the static library:
+### 2. Build Dependencies and Binaries
 
 ```bash
-make deps
+make build-all
 ```
 
 This will:
-1. Clone whisper.cpp as a Git submodule
-2. Build the C++ library
-3. Build Go bindings
+1. Initialize the `whisper.cpp` git submodule
+2. Tidy the Go modules
+3. Build the `whisper.cpp` static library
+4. Build the CLI and server binaries
 
-**Output**:
-- Static library: `whisper.cpp/libwhisper.a`
-- Go bindings: `whisper.cpp/bindings/go/build/`
-
-### 3. Build Gosper
-
-#### CLI Binary
-
-Build the command-line interface:
-
-```bash
-make build
-```
-
-This creates `dist/gosper` with full features (CLI + Whisper + microphone support).
-
-**Custom builds with build tags**:
-
-```bash
-# CLI + Whisper only (no microphone)
-go build -tags "cli whisper" -o dist/gosper ./cmd/gosper
-
-# CLI + Microphone only (no transcription)
-go build -tags "cli malgo" -o dist/gosper ./cmd/gosper
-
-# Minimal CLI (list devices only)
-go build -tags "cli" -o dist/gosper ./cmd/gosper
-```
-
-#### Server Binary
-
-Build the HTTP API server:
-
-```bash
-go build -tags "whisper" -o dist/server ./cmd/server
-```
-
-This creates a binary that exposes `/api/transcribe` endpoint.
-
-### 4. Verify Build
+### 3. Verify Build
 
 Test the CLI:
 
@@ -139,48 +96,19 @@ Gosper uses Go build tags to conditionally compile features. This reduces binary
 | `whisper` | Enable Whisper transcription | CGO, whisper.cpp | Need speech recognition |
 | `malgo` | Enable microphone capture | CGO, miniaudio | Need audio recording |
 
-### Common Build Combinations
-
-```bash
-# Full-featured CLI (recommended for development)
-go build -tags "cli malgo whisper" -o gosper ./cmd/gosper
-
-# HTTP Server (production backend)
-go build -tags "whisper" -o server ./cmd/server
-
-# Lightweight CLI (testing/debugging)
-go build -tags "cli" -o gosper ./cmd/gosper
-```
-
 ## Development Workflow
-
-### Project Structure
-
-```
-gosper/
-├── cmd/
-│   ├── gosper/          # CLI entrypoint
-│   └── server/          # HTTP server entrypoint
-├── internal/
-│   ├── domain/          # Business entities
-│   ├── port/            # Interfaces
-│   ├── usecase/         # Application logic
-│   └── adapter/         # Implementations
-├── web/                 # Frontend static files
-├── whisper.cpp/         # Git submodule (C++ library)
-├── Makefile             # Build automation
-└── go.mod               # Go dependencies
-```
 
 ### Makefile Targets
 
 ```bash
 make deps        # Build whisper.cpp
-make build       # Build CLI
-make server      # Build HTTP server
+make tidy        # Tidy go modules
+make build-all   # Build all binaries
+make build-cli   # Build CLI binary
+make build-server# Build server binary
 make test        # Run unit tests
 make itest       # Run integration tests
-make coverage    # Generate coverage report
+make lint        # Run linter
 make clean       # Remove build artifacts
 make help        # Show all targets
 ```
@@ -282,13 +210,10 @@ sudo apt-get install -y libpulse-dev    # PulseAudio
 **ARM64 (Apple Silicon)**:
 ```bash
 # Build for native ARM64
-GOARCH=arm64 make build
+GOARCH=arm64 make build-all
 
 # Build for x86_64 (Rosetta)
-GOARCH=amd64 make build
-
-# Universal binary
-lipo -create dist/gosper-arm64 dist/gosper-amd64 -output dist/gosper
+GOARCH=amd64 make build-all
 ```
 
 ### Windows
@@ -338,38 +263,17 @@ make deps
 
 **Error**: `cannot find whisper.h`
 
-**Solution**: Set include path:
+**Solution**: The `Makefile` should handle this automatically. If you are building manually, you will need to set the following environment variables:
 ```bash
-export C_INCLUDE_PATH="$(pwd)/whisper.cpp:$(pwd)/whisper.cpp/bindings/go/build"
-export LIBRARY_PATH="$(pwd)/whisper.cpp/bindings/go/build"
-```
-
-### Build Tag Errors
-
-**Error**: `undefined: cmd` when running binary
-
-**Cause**: Missing `cli` build tag
-
-**Solution**: Build with correct tags:
-```bash
-go build -tags "cli whisper" -o gosper ./cmd/gosper
+export C_INCLUDE_PATH="$(pwd)/whisper.cpp/include:$(pwd)/whisper.cpp/ggml/include"
+export LIBRARY_PATH="$(pwd)/whisper.cpp/build_go/src:$(pwd)/whisper.cpp/build_go/ggml/src"
 ```
 
 ### Linker Errors
 
 **Error**: `ld: library not found for -lwhisper`
 
-**Solution** (macOS):
-```bash
-export LIBRARY_PATH="$(pwd)/whisper.cpp/bindings/go/build"
-go build -tags "cli whisper" -o gosper ./cmd/gosper
-```
-
-**Solution** (Linux):
-```bash
-export LD_LIBRARY_PATH="$(pwd)/whisper.cpp/bindings/go/build"
-go build -tags "cli whisper" -o gosper ./cmd/gosper
-```
+**Solution**: The `Makefile` should handle this automatically. If you are building manually, you will need to set the appropriate library path environment variable for your operating system (e.g., `LIBRARY_PATH` on macOS, `LD_LIBRARY_PATH` on Linux).
 
 ### Integration Test Failures
 
@@ -392,10 +296,10 @@ make itest
 
 ```bash
 # Build for Linux from macOS
-GOOS=linux GOARCH=amd64 go build -tags "whisper" -o server-linux ./cmd/server
+GOOS=linux GOARCH=amd64 make build-server
 
 # Build for Windows from Linux
-GOOS=windows GOARCH=amd64 go build -tags "cli whisper" -o gosper.exe ./cmd/gosper
+GOOS=windows GOARCH=amd64 make build-cli
 ```
 
 **Note**: Cross-compiling with CGO requires target platform's GCC toolchain.
@@ -405,30 +309,32 @@ GOOS=windows GOARCH=amd64 go build -tags "cli whisper" -o gosper.exe ./cmd/gospe
 For fully static binaries (useful for Alpine Linux):
 
 ```bash
-CGO_ENABLED=1 go build \
-  -tags "whisper cli malgo" \
-  -ldflags "-linkmode external -extldflags -static" \
-  -o gosper ./cmd/gosper
+CGO_ENABLED=1 make build-all LDFLAGS="-linkmode external -extldflags -static"
 ```
 
 ### Debug Builds
 
 ```bash
-# Build with debug symbols
-go build -gcflags="all=-N -l" -tags "cli whisper" -o gosper ./cmd/gosper
+# Build with debug symbols using Makefile (recommended)
+make build-cli GOFLAGS='-gcflags="all=-N -l"'
+
+# Or build manually with CGO vars
+CGO_CFLAGS="-I$(pwd)/whisper.cpp/include:$(pwd)/whisper.cpp/ggml/include" \
+CGO_LDFLAGS="-L$(pwd)/whisper.cpp/build_go/src -lwhisper -lggml -lggml-base -lggml-cpu -lm -lstdc++ -fopenmp" \
+  go build -gcflags="all=-N -l" -tags "cli malgo whisper" -o dist/gosper ./cmd/gosper
 
 # Run with delve debugger
-dlv exec ./gosper -- transcribe test.wav
+dlv exec ./dist/gosper -- transcribe test.wav
 ```
 
 ### Profiling
 
 ```bash
 # Build with profiling
-go build -tags "cli whisper" -o gosper ./cmd/gosper
+make build-cli
 
 # CPU profile
-./gosper transcribe large-file.mp3 --cpuprofile=cpu.prof
+./dist/gosper transcribe large-file.mp3 --cpuprofile=cpu.prof
 
 # Analyze profile
 go tool pprof cpu.prof
@@ -455,17 +361,8 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Build deps
-        run: make deps
-
-      - name: Build
-        run: make build
-
-      - name: Test
-        run: make test
-
-      - name: Coverage
-        run: make coverage
+      - name: Build and test
+        run: make build-all test
 ```
 
 ## Next Steps

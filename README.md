@@ -48,9 +48,14 @@ All processing happens locally using [whisper.cpp](https://github.com/ggerganov/
 
 ### Try It in 30 Seconds (Docker)
 
+**Note**: The public Docker image `gosper/server:latest` is currently out of date. Please build the image locally.
+
 ```bash
+# Build the server image
+docker build -f Dockerfile.server -t gosper/server:local .
+
 # Run the service
-docker run -p 8080:8080 gosper/server:latest
+docker run -p 8080:8080 gosper/server:local
 
 # Transcribe an audio file
 curl -X POST http://localhost:8080/api/transcribe \
@@ -140,9 +145,12 @@ We welcome contributions! Gosper aims to be not just useful, but also forkable a
 # Clone and build
 git clone https://github.com/yourusername/gosper.git
 cd gosper
-make deps  # Build whisper.cpp
-make build # Build CLI
-make test  # Run tests
+
+# Build all binaries
+make build-all
+
+# Run tests
+make test
 ```
 
 See [docs/BUILD.md](docs/BUILD.md) for detailed setup instructions.
