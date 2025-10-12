@@ -1058,5 +1058,5 @@ flowchart TD
 For more details, see:
 - [K3s Deployment](./deployment-k3s.md)
 - [Configuration](./configuration.md)
-- [Troubleshooting](./troubleshooting.md)
-- [Architecture](./architecture.md)
+- [Troubleshooting](./TROUBLESHOOTING.md)
+- [Architecture](./ARCHITECTURE.md)

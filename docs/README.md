@@ -2,10 +2,10 @@
 
 ## Core Documentation
 
-- **[architecture.md](./architecture.md)** — Hexagonal design, ports/use cases/adapters, flow
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** — Hexagonal design, ports/use cases/adapters, flow
 - **[usage-cli.md](./usage-cli.md)** — CLI commands, flags, examples
-- **[api.md](./api.md)** — Backend HTTP API (`/api/transcribe`)
-- **[configuration.md](./configuration.md)** — Env vars, config file, precedence
+- **[API.md](./API.md)** — Backend HTTP API (`/api/transcribe`)
+- **[CONFIGURATION.md](./CONFIGURATION.md)** — Env vars, config file, precedence
 
 ## Deployment Guides
 
@@ -19,12 +19,12 @@
 - **[technical-debt.md](./technical-debt.md)** — 🔧 Technical debt analysis, incomplete features, and roadmap
 - **[audio.md](./audio.md)** — Decoders, resampler, capture, beeps
 - **[models.md](./models.md)** — Models, checksums, caching
-- **[troubleshooting.md](./troubleshooting.md)** — Common issues and fixes
+- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** — Common issues and fixes
 - **[ci.md](./ci.md)** — GitHub Actions, coverage thresholds
 - **[tags.md](./tags.md)** — Build tags matrix and implications
 
 ## Project Information
 
 - **[roadmap.md](./roadmap.md)** — Planned work
-- **[contributing.md](./contributing.md)** — Workflow, commit structure, code style
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)** — Workflow, commit structure, code style
 
