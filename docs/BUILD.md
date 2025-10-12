@@ -74,16 +74,23 @@ This will:
 
 ### 3. Verify Build
 
-Test the CLI:
+First, download a model to use for transcription:
+```bash
+# Build the model downloader utility
+make -C whisper.cpp/bindings/go examples
 
+# Download the tiny English model
+./whisper.cpp/bindings/go/build_go/go-model-download -out whisper.cpp/models ggml-tiny.en.bin
+```
+
+Then, test the CLI:
 ```bash
 # Show help
 ./dist/gosper --help
 
-# Transcribe sample audio
+# Transcribe sample audio (use a WAV file)
 ./dist/gosper transcribe whisper.cpp/samples/jfk.wav \
-  --model ggml-tiny.en.bin \
-  --lang en
+  --model whisper.cpp/models/ggml-tiny.en.bin
 ```
 
 ## Build Tags Explained
@@ -263,11 +270,11 @@ make deps
 
 **Error**: `cannot find whisper.h`
 
-**Solution**: The `Makefile` should handle this automatically. If you are building manually, you will need to set the following environment variables:
-```bash
-export C_INCLUDE_PATH="$(pwd)/whisper.cpp/include:$(pwd)/whisper.cpp/ggml/include"
-export LIBRARY_PATH="$(pwd)/whisper.cpp/build_go/src:$(pwd)/whisper.cpp/build_go/ggml/src"
-```
+**Solution**: This error typically occurs when building without using the main `Makefile`. The `Makefile` is configured to pass the correct include paths to the Go compiler.
+
+**Recommended Fix**: Always use `make build-all` or other `make` targets to build the project.
+
+If you must build manually with `go build`, you are responsible for setting the `C_INCLUDE_PATH` environment variable correctly. The `Makefile` handles this for you.
 
 ### Linker Errors
 

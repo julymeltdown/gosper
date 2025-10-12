@@ -37,10 +37,21 @@ Building an app with speech-to-text features? You have options:
 5. **Scale** with your userbase—no per-minute costs
 
 ### For CLI Users
-1. **Install** Gosper CLI binary
-2. **Record** from microphone or use existing audio files
-3. **Transcribe** with automatic language detection
-4. **Export** transcripts to text or JSON
+1. **Build** the CLI binary using `make build-all`.
+2. **Download a Model**: Gosper needs a Whisper model to run.
+   ```bash
+   # Build the model downloader utility
+   make -C whisper.cpp/bindings/go examples
+
+   # Download the tiny English model
+   ./whisper.cpp/bindings/go/build_go/go-model-download -out whisper.cpp/models ggml-tiny.en.bin
+   ```
+3. **Transcribe an Audio File**:
+   ```bash
+   # Transcribe a WAV file
+   ./dist/gosper transcribe path/to/your/audio.wav --model whisper.cpp/models/ggml-tiny.en.bin
+   ```
+   **Note**: The current version has a known issue with MP3 decoding. Please use WAV files for transcription.
 
 All processing happens locally using [whisper.cpp](https://github.com/ggerganov/whisper.cpp), a high-performance C++ implementation of OpenAI's Whisper model.
 

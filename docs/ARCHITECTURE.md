@@ -515,3 +515,58 @@ Configuration is read at startup and passed to adapters via dependency injection
 - **[API Reference](API.md)** - HTTP API documentation
 - **[Configuration](CONFIGURATION.md)** - Environment variables and settings
 - **[Contributing](CONTRIBUTING.md)** - Development workflow and guidelines
+
+## Visualizations
+
+### Component Map
+```mermaid
+flowchart LR
+  U[User] -->|flags, files| CLI[CLI (tags: cli)]
+  CLI --> UC[Use Cases]
+  subgraph Domain
+    UC --> P[Ports]
+  end
+  P -->|Transcriber| AW[Adapter: Whisper (tags: whisper)]
+  P -->|AudioInput| AA[Adapter: Audio In (tags: malgo)]
+  P -->|ModelRepo| AM[Adapter: Model Repo]
+  P -->|Storage| AS[Adapter: Storage]
+  AW --> WhisperCPP[whisper.cpp Go bindings]
+  AA --> Miniaudio[miniaudio (malgo)]
+  AM --> Cache[(~/.cache/gosper)]
+```
+
+### Transcribe File Sequence
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant CLI as CLI cmd
+  participant UC as Usecase: TranscribeFile
+  participant Dec as Decoder (WAV)
+  participant Repo as ModelRepo
+  participant W as Whisper Adapter
+  participant S as Storage
+
+  U->>CLI: gosper transcribe file.wav --model ...
+  CLI->>UC: Execute(path, cfg)
+  UC->>Dec: DecodeAll() (f32 mono)
+  UC->>Repo: Ensure(modelName)
+  Repo-->>UC: /abs/path/model.bin
+  UC->>W: Transcribe(pcm16k, cfg)
+  W-->>UC: Transcript{text,segments}
+  UC->>S: WriteTranscript(outPath, transcript)
+  UC-->>CLI: Transcript
+  CLI-->>U: Print/Save
+```
+
+### k3s Deployment (High Level)
+```mermaid
+flowchart LR
+  Browser -->|HTTP| Ingress[Ingress (Traefik)]
+  Ingress --> FE[Frontend Service]
+  Ingress --> BE[Backend Service]
+  FE --> Nginx[nginx static web]
+  BE --> Server[Go server /api/transcribe]
+  Server --> Whisper[whisper adapter]
+  Whisper --> Models[(Model cache)]
+  Server -->|optional| HF[HuggingFace models]
+```
