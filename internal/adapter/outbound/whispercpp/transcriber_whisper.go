@@ -28,17 +28,9 @@ func (t *Transcriber) Transcribe(ctx context.Context, pcm16k []float32, cfg doma
     if cfg.MaxTokens > 0 { c.SetMaxTokensPerSegment(cfg.MaxTokens) }
     if cfg.InitialPrompt != "" { c.SetInitialPrompt(cfg.InitialPrompt) }
 
+    if err := c.Process(pcm16k, nil, nil, nil); err != nil { return domain.Transcript{}, err }
+
     var segments []domain.TranscriptSegment
-    segCB := func(s w.Segment) {
-        segments = append(segments, domain.TranscriptSegment{
-            Index:   s.Num,
-            StartMS: int64(s.Start / 1e6),
-            EndMS:   int64(s.End / 1e6),
-            Text:    s.Text,
-        })
-    }
-    if err := c.Process(pcm16k, nil, segCB, nil); err != nil { return domain.Transcript{}, err }
-    // Drain any remaining
     for {
         seg, err := c.NextSegment()
         if err != nil { break }
