@@ -65,8 +65,20 @@ var recordCmd = &cobra.Command{
 		if recordFlags.beep {
 			audio.PlayBeepOptions(audio.BeepOptions{DeviceID: recordFlags.outdev, Volume: float32(recordFlags.beepvol)})
 		}
-		// Persist selected device if provided
-		if p, err := config.LoadFile(config.DefaultPath()); err == nil {
+
+		// Persist configuration if any settings were provided
+		configNeedsSaving := recordFlags.device != "" || recordFlags.outdev != "" ||
+			recordFlags.beepvol != 0 || recordFlags.beep
+
+		if configNeedsSaving || err != nil {
+			// Try to load existing config
+			p, loadErr := config.LoadFile(config.DefaultPath())
+			if loadErr != nil {
+				// Config doesn't exist, start with env defaults
+				p = cfg
+			}
+
+			// Update config with flag values
 			if recordFlags.device != "" {
 				p.LastDeviceID = recordFlags.device
 			}
@@ -77,35 +89,13 @@ var recordCmd = &cobra.Command{
 			if recordFlags.beepvol != 0 {
 				p.BeepVolume = recordFlags.beepvol
 			}
-			_ = config.SaveFile(config.DefaultPath(), p)
-		} else if recordFlags.device != "" || recordFlags.outdev != "" || recordFlags.beepvol != 0 || recordFlags.beep {
-			if cur, err := config.LoadFile(config.DefaultPath()); err == nil {
-				if recordFlags.device != "" {
-					cur.LastDeviceID = recordFlags.device
-				}
-				cur.AudioFeedback = recordFlags.beep
-				if recordFlags.outdev != "" {
-					cur.OutputDeviceID = recordFlags.outdev
-				}
-				if recordFlags.beepvol != 0 {
-					cur.BeepVolume = recordFlags.beepvol
-				}
-				_ = config.SaveFile(config.DefaultPath(), cur)
-			} else {
-				c := cfg
-				if recordFlags.device != "" {
-					c.LastDeviceID = recordFlags.device
-				}
-				c.AudioFeedback = recordFlags.beep
-				if recordFlags.outdev != "" {
-					c.OutputDeviceID = recordFlags.outdev
-				}
-				if recordFlags.beepvol != 0 {
-					c.BeepVolume = recordFlags.beepvol
-				}
-				_ = config.SaveFile(config.DefaultPath(), c)
+
+			// Save only if we have changes to persist
+			if configNeedsSaving {
+				_ = config.SaveFile(config.DefaultPath(), p)
 			}
 		}
+
 		return err
 	},
 }

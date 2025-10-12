@@ -315,8 +315,13 @@ CGO_ENABLED=1 make build-all LDFLAGS="-linkmode external -extldflags -static"
 ### Debug Builds
 
 ```bash
-# Build with debug symbols
-go build -gcflags="all=-N -l" -tags "cli malgo whisper" -o dist/gosper ./cmd/gosper
+# Build with debug symbols using Makefile (recommended)
+make build-cli GOFLAGS='-gcflags="all=-N -l"'
+
+# Or build manually with CGO vars
+CGO_CFLAGS="-I$(pwd)/whisper.cpp/include:$(pwd)/whisper.cpp/ggml/include" \
+CGO_LDFLAGS="-L$(pwd)/whisper.cpp/build_go/src -lwhisper -lggml -lggml-base -lggml-cpu -lm -lstdc++ -fopenmp" \
+  go build -gcflags="all=-N -l" -tags "cli malgo whisper" -o dist/gosper ./cmd/gosper
 
 # Run with delve debugger
 dlv exec ./dist/gosper -- transcribe test.wav

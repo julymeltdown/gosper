@@ -2,8 +2,6 @@ module gosper
 
 go 1.23
 
-toolchain go1.24.3
-
 require (
 	github.com/gen2brain/malgo v0.11.24
 	github.com/ggerganov/whisper.cpp/bindings/go v0.0.0-00010101000000-000000000000

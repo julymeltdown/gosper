@@ -4,6 +4,7 @@ package audio
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"sync"
@@ -90,18 +91,14 @@ func (MalgoInput) Open(ctx context.Context, deviceID string, format domain.Audio
 	var dev *malgo.Device
 	callbacks := malgo.DeviceCallbacks{
 		Data: func(pOutput, pInput []byte, frameCount uint32) {
-			// pInput contains interleaved float32
+			// pInput contains interleaved float32 in little-endian format
 			n := int(frameCount) * int(cfg.Capture.Channels)
 			out := make([]float32, n)
-			// copy byte slice to float32 slice
-			// reinterpret []byte as []float32
-			for i := 0; i < n; i++ {
-				off := i * 4
-				if off+4 > len(pInput) {
-					break
-				}
-				b := uint32(pInput[off]) | uint32(pInput[off+1])<<8 | uint32(pInput[off+2])<<16 | uint32(pInput[off+3])<<24
-				out[i] = math.Float32frombits(b)
+
+			// Convert byte slice to float32 slice using encoding/binary for portability
+			for i := 0; i < n && i*4+4 <= len(pInput); i++ {
+				bits := binary.LittleEndian.Uint32(pInput[i*4 : i*4+4])
+				out[i] = math.Float32frombits(bits)
 			}
 			// Downmix if channels > 1
 			if cfg.Capture.Channels > 1 {
