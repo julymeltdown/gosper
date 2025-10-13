@@ -8,8 +8,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -197,6 +199,10 @@ func (app *application) handleFileUpload(w http.ResponseWriter, r *http.Request)
 	if ext == "" {
 		ext = ".wav"
 	}
+
+	// Normalize extension
+	ext = strings.ToLower(ext)
+
 	tmp, err := os.CreateTemp(tmpDir, "upload-*"+ext)
 	if err != nil {
 		app.serverError(w, r, fmt.Errorf("tmp: %v", err))
@@ -218,6 +224,59 @@ func (app *application) handleFileUpload(w http.ResponseWriter, r *http.Request)
 		return nil, nil, err
 	}
 
+	// Convert WebM to WAV if needed
+	if ext == ".webm" || ext == ".ogg" {
+		wavTmp, convertErr := app.convertToWAV(tmp.Name())
+		if convertErr != nil {
+			cleanup()
+			app.serverError(w, r, fmt.Errorf("convert to wav: %v", convertErr))
+			return nil, nil, convertErr
+		}
+
+		// Clean up original file, return converted WAV
+		cleanup()
+		newCleanup := func() {
+			wavTmp.Close()
+			os.Remove(wavTmp.Name())
+		}
+		return wavTmp, newCleanup, nil
+	}
+
 	return tmp, cleanup, nil
+}
+
+// convertToWAV converts an audio file to WAV format using ffmpeg
+func (app *application) convertToWAV(inputPath string) (*os.File, error) {
+	tmpDir := os.TempDir()
+	wavFile, err := os.CreateTemp(tmpDir, "converted-*.wav")
+	if err != nil {
+		return nil, fmt.Errorf("create temp wav: %v", err)
+	}
+	wavFile.Close() // ffmpeg will write to it
+
+	// Convert to 16kHz mono WAV (whisper requirement)
+	cmd := exec.Command("ffmpeg",
+		"-i", inputPath,
+		"-ar", "16000",
+		"-ac", "1",
+		"-c:a", "pcm_s16le",
+		"-y", // overwrite
+		wavFile.Name(),
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		os.Remove(wavFile.Name())
+		return nil, fmt.Errorf("ffmpeg: %v, output: %s", err, string(output))
+	}
+
+	// Reopen for reading
+	f, err := os.Open(wavFile.Name())
+	if err != nil {
+		os.Remove(wavFile.Name())
+		return nil, fmt.Errorf("reopen wav: %v", err)
+	}
+
+	return f, nil
 }
 

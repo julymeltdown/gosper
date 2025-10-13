@@ -14,7 +14,7 @@ ENV LIBRARY_PATH=/app/whisper.cpp/bindings/go/build:/app/whisper.cpp/build_go/sr
 RUN CGO_ENABLED=1 CGO_LDFLAGS="-ldl" GOOS=linux GOARCH=amd64 go build -tags whisper -o /out/server ./cmd/server
 
 FROM debian:bookworm-slim as runtime
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 libgomp1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 libgomp1 ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /srv
 COPY --from=build /out/server /usr/local/bin/server
 ENV PORT=8080
