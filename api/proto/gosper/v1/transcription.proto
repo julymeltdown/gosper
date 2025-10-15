@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package gosper.v1;
+
+option go_package = "gosper/pkg/grpc/gen/go/gosper/v1;gosperv1";
+
+// TranscriptionService provides audio-to-text transcription using OpenAI Whisper
+service TranscriptionService {
+  // Transcribe converts audio to text using client streaming.
+  // Client sends config first, then audio chunks. Server returns final transcript.
+  rpc Transcribe(stream TranscribeRequest) returns (TranscribeResponse);
+
+  // TranscribeWithProgress provides real-time progress updates.
+  // Bidirectional streaming for long transcriptions.
+  rpc TranscribeWithProgress(stream TranscribeRequest) returns (stream TranscribeProgressResponse);
+
+  // HealthCheck verifies service availability
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// TranscribeRequest is sent by client during streaming.
+// First message must be config, subsequent messages are audio chunks.
+message TranscribeRequest {
+  oneof data {
+    TranscribeConfig config = 1;
+    AudioChunk audio_chunk = 2;
+  }
+}
+
+// TranscribeConfig specifies transcription parameters
+message TranscribeConfig {
+  // Model name (e.g., "ggml-tiny.en.bin", "ggml-base.bin")
+  string model = 1;
+
+  // Language code ("en", "ko", "ja", etc.) or "auto" for detection
+  string language = 2;
+
+  // Translate to English (only if language != "en")
+  bool translate = 3;
+
+  // Number of threads for processing (0 = auto)
+  uint32 threads = 4;
+
+  // Include timestamp information in segments
+  bool timestamps = 5;
+
+  // Beam search size (higher = better quality, slower)
+  int32 beam_size = 6;
+
+  // Maximum tokens per segment
+  uint32 max_tokens = 7;
+
+  // Initial prompt to guide transcription context
+  string initial_prompt = 8;
+
+  // Audio format metadata
+  AudioFormat format = 9;
+}
+
+// AudioFormat describes the input audio characteristics
+message AudioFormat {
+  // Encoding format: "wav", "mp3", "webm", "ogg"
+  string encoding = 1;
+
+  // Original sample rate in Hz (e.g., 44100, 48000)
+  // Server will resample to 16kHz for Whisper
+  int32 sample_rate = 2;
+
+  // Number of audio channels (1 = mono, 2 = stereo)
+  // Server will convert to mono for Whisper
+  int32 channels = 3;
+}
+
+// AudioChunk contains a portion of the audio data
+message AudioChunk {
+  // Raw audio bytes in the format specified in TranscribeConfig
+  bytes data = 1;
+
+  // Sequence number for ordering chunks (starts from 0)
+  int64 sequence_number = 2;
+}
+
+// TranscribeResponse is the final transcription result
+message TranscribeResponse {
+  // Detected or specified language code
+  string language = 1;
+
+  // Full transcription text (all segments concatenated)
+  string text = 2;
+
+  // Time-stamped segments
+  repeated Segment segments = 3;
+
+  // Server processing duration in milliseconds
+  int64 duration_ms = 4;
+}
+
+// TranscribeProgressResponse is sent during bidirectional streaming
+message TranscribeProgressResponse {
+  oneof event {
+    ProgressUpdate progress = 1;
+    TranscribeResponse result = 2;
+  }
+}
+
+// ProgressUpdate provides real-time transcription status
+message ProgressUpdate {
+  // Completion percentage (0.0 to 1.0)
+  float percent_complete = 1;
+
+  // Human-readable status message
+  string status = 2;
+
+  // Elapsed time in milliseconds
+  int64 elapsed_ms = 3;
+
+  // Current segment being processed
+  int32 current_segment = 4;
+}
+
+// Segment represents a time-stamped portion of transcription
+message Segment {
+  // Segment index (0-based)
+  int32 index = 1;
+
+  // Start time in milliseconds
+  int64 start_ms = 2;
+
+  // End time in milliseconds
+  int64 end_ms = 3;
+
+  // Transcribed text for this segment
+  string text = 4;
+}
+
+// HealthCheckRequest is empty for simplicity
+message HealthCheckRequest {}
+
+// HealthCheckResponse indicates service health
+message HealthCheckResponse {
+  // Status: "ok" or error description
+  string status = 1;
+
+  // Server version
+  string version = 2;
+
+  // Available models count
+  int32 models_available = 3;
+}

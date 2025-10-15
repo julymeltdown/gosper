@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: deps build-all build-cli build-server build-cli-only build-server-only test itest lint tidy clean help
+.PHONY: deps build-all build-cli build-server build-cli-only build-server-only proto test itest lint tidy clean help
 
 CGO_INCLUDE_PATH := $(PWD)/whisper.cpp:$(PWD)/whisper.cpp/include:$(PWD)/whisper.cpp/ggml/include
 WHISPER_LIB_PATH := $(PWD)/whisper.cpp/build_go/src
@@ -38,6 +38,19 @@ build-server-only:
 	CGO_LDFLAGS="$(CGO_LDFLAGS_VALUE)" \
 		go build -tags "whisper" -o dist/server ./cmd/server
 
+# Generate protobuf code
+proto:
+	@echo "Generating protobuf code..."
+	@mkdir -p pkg/grpc/gen/go
+	protoc \
+		--go_out=pkg/grpc/gen/go \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=pkg/grpc/gen/go \
+		--go-grpc_opt=paths=source_relative \
+		--proto_path=api/proto \
+		api/proto/gosper/v1/*.proto
+	@echo "Protobuf code generated successfully"
+
 test:
 	go test ./... -short -count=1 -race
 
@@ -60,6 +73,7 @@ help:
 	@echo "  build-all    - Build all binaries (CLI + server)"
 	@echo "  build-cli    - Build CLI binary"
 	@echo "  build-server - Build server binary"
+	@echo "  proto        - Generate protobuf code from .proto files"
 	@echo "  test         - Run unit tests"
 	@echo "  itest        - Run integration tests"
 	@echo "  lint         - Run golangci-lint"
