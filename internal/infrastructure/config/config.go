@@ -23,7 +23,7 @@ type Config struct {
 
 func FromEnv() Config {
     c := Config{
-        Model:    getenv("GOSPER_MODEL", "ggml-tiny.en.bin"),
+        Model:    getenv("GOSPER_MODEL", "ggml-base.en.bin"),
         Language: getenv("GOSPER_LANG", "auto"),
         CacheDir: getenv("GOSPER_CACHE", ""),
         LogLevel: getenv("GOSPER_LOG", "info"),
